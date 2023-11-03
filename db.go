@@ -433,7 +433,6 @@ func (db *DB) mmap(minsz int) error {
 	}
 
 	// Ensure the size is at least the minimum size.
-	db.fileSize() = int(info.Size())
 	var size = db.fileSize()
 
 	if size < minsz {
