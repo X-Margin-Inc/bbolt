@@ -2,7 +2,7 @@ module github.com/X-Margin-Inc/bbolt
 
 go 1.21
 
-replace go.etcd.io/bbolt => github.com/X-Margin-Inc/bbolt
+replace go.etcd.io/bbolt => github.com/X-Margin-Inc/bbolt v0.0.2
 
 require (
 	github.com/spf13/cobra v1.7.0
