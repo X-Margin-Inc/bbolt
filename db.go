@@ -421,16 +421,21 @@ func (db *DB) fileSize() (int, error) {
 
 // mmap opens the underlying memory-mapped file and initializes the meta references.
 // minsz is the minimum size that the new mmap can be.
-func (db *DB) mmap(minsz int) (err error) {
+func (db *DB) mmap(minsz int) error {
 	db.mmaplock.Lock()
 	defer db.mmaplock.Unlock()
 
-	// Ensure the size is at least the minimum size.
-	fileSize, err := db.fileSize()
+	info, err := db.file.Stat()
 	if err != nil {
-		return err
+		return fmt.Errorf("mmap stat error: %s", err)
+	} else if int(info.Size()) < db.pageSize*2 {
+		return fmt.Errorf("file size too small")
 	}
-	var size = fileSize
+
+	// Ensure the size is at least the minimum size.
+	db.filesz = int(info.Size())
+	var size = db.filesz
+
 	if size < minsz {
 		size = minsz
 	}
@@ -441,7 +446,7 @@ func (db *DB) mmap(minsz int) (err error) {
 
 	if db.Mlock {
 		// Unlock db memory
-		if err := db.munlock(fileSize); err != nil {
+		if err := db.munlock(db.filesz); err != nil {
 			return err
 		}
 	}
@@ -452,43 +457,33 @@ func (db *DB) mmap(minsz int) (err error) {
 	}
 
 	// Unmap existing data before continuing.
-	if err = db.munmap(); err != nil {
+	if err := db.munmap(); err != nil {
 		return err
 	}
 
 	// Memory-map the data file as a byte slice.
 	// gofail: var mapError string
 	// return errors.New(mapError)
-	if err = mmap(db, size); err != nil {
+	if err := mmap(db, size); err != nil {
 		return err
 	}
 
-	// Perform unmmap on any error to reset all data fields:
-	// dataref, data, datasz, meta0 and meta1.
-	defer func() {
-		if err != nil {
-			if unmapErr := db.munmap(); unmapErr != nil {
-				err = fmt.Errorf("%w; rollback unmap also failed: %v", err, unmapErr)
-			}
-		}
-	}()
-
 	if db.Mlock {
 		// Don't allow swapping of data file
-		if err := db.mlock(fileSize); err != nil {
+		if err := db.mlock(db.filesz); err != nil {
 			return err
 		}
 	}
 
 	// Save references to the meta pages.
-	db.meta0 = db.page(0).Meta()
-	db.meta1 = db.page(1).Meta()
+	db.meta0 = db.page(0).meta()
+	db.meta1 = db.page(1).meta()
 
 	// Validate the meta pages. We only return an error if both meta pages fail
 	// validation, since meta0 failing validation means that it wasn't saved
 	// properly -- but we can recover using meta1. And vice-versa.
-	err0 := db.meta0.Validate()
-	err1 := db.meta1.Validate()
+	err0 := db.meta0.validate()
+	err1 := db.meta1.validate()
 	if err0 != nil && err1 != nil {
 		return err0
 	}
