@@ -433,8 +433,8 @@ func (db *DB) mmap(minsz int) error {
 	}
 
 	// Ensure the size is at least the minimum size.
-	db.filesz = int(info.Size())
-	var size = db.filesz
+	db.fileSize() = int(info.Size())
+	var size = db.fileSize()
 
 	if size < minsz {
 		size = minsz
@@ -446,7 +446,7 @@ func (db *DB) mmap(minsz int) error {
 
 	if db.Mlock {
 		// Unlock db memory
-		if err := db.munlock(db.filesz); err != nil {
+		if err := db.munlock(db.fileSize()); err != nil {
 			return err
 		}
 	}
@@ -470,7 +470,7 @@ func (db *DB) mmap(minsz int) error {
 
 	if db.Mlock {
 		// Don't allow swapping of data file
-		if err := db.mlock(db.filesz); err != nil {
+		if err := db.mlock(db.fileSize()); err != nil {
 			return err
 		}
 	}
