@@ -2,6 +2,8 @@ module github.com/X-Margin-Inc/bbolt
 
 go 1.21
 
+replace go.etcd.io/bbolt => github.com/X-Margin-Inc/bbolt
+
 require (
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
